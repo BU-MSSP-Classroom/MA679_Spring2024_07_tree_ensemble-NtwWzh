@@ -399,28 +399,15 @@ Your code:
 ```{r,echo=TRUE}
 plot(cv_oj$size,cv_oj$dev,type='b')
 ```
-left
 
-Your answer:
-
-~~~
-at size8, the error rate is the lowest
-
-
-~~~
 
 (h) Which tree size corresponds to the lowest cross-validated classification error rate?
 
-Your code:
-```{r,echo=TRUE}
-#
-#
-```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+at size8, the cv classification error rate is the lowest
 
 
 ~~~
@@ -429,30 +416,31 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+prune_oj <- prune.misclass(oj_tree,best=5)
+pred_prune_oj <- predict(prune_oj, newdata = train_oj, type = "class")
+table(pred_prune_oj,train_oj$Purchase)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+the error rate is 76+57/76+57+411+256=0.16625
 
 
 ~~~
 
 (j) Compare the training error rates between the pruned and unpruned trees. Which is higher?
 
-Your code:
 ```{r,echo=TRUE}
-#
-#
+unprune_oj_train <- predict(oj_tree,newdata=train_oj,type='class')
+table(unprune_oj_train,train_oj$Purchase)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+the train error rate is 30+91/30+91+457+222=0.15125.
+The prune trees has the higher training error rates.
 
 
 ~~~
@@ -462,15 +450,15 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-prune_oj <-  prune.tree(oj_tree,best=5)
-plot(prune_oj)
-text(prune_oj,pretty=0)
+test_prune_oj <-  predict(prune_oj,newdata = test_oj,type='class')
+table(test_prune_oj,test_oj$Purchase)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+the test error rate of prune trees is 30+19/30+19+136+85=0.1815.
+Unpruned trees has higher test error rate.
 
 
 ~~~
