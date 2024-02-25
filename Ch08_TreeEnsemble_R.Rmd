@@ -24,6 +24,10 @@ pacman::p_load(
       , RWeka
       , caret
       , xgboost
+      , caTools
+      , randomForest
+      , tree
+      , BART
       )
 ```
 
@@ -174,9 +178,29 @@ In the lab, we applied random forests to the Boston data using `mtry = 6`,  `ntr
 
 ```{r}
 data(Boston,package = "ISLR2")
+set.seed(679)
+sample_data <- sample.split(Boston$medv,SplitRatio = 0.8)
+train_boston <- subset(Boston, select=-c(medv), sample_data==TRUE)
+test_boston <- subset(Boston,select=-c(medv),sample_data==FALSE)
+train_boston_y <- subset(Boston$medv,sample_data==TRUE)
+test_boston_y <- subset(Boston$medv,sample_data==FALSE)
+
+p=13
+boston_model <- randomForest(train_boston_y~., data=train_boston,mtry=12,ntree=25)
+boston_model
+
+yhat_boston <- predict(boston_model,newdata=test_boston)
+plot(yhat_boston,test_boston_y)
+abline(0,1)
+mean((yhat_boston-test_boston_y)^2)
+
+rf_boston <- randomForest(train_boston_y~.,data=train_boston,mtry=12,importance=TRUE)
+yhat_rf <- predict(rf_boston,newdata=test_boston)
+importance(rf_boston)
+varImpPlot(rf_boston)
 ```
 
-###
+It looks like the MSE is getting larger
 
 In the lab, a classification tree was applied to the Carseats data set after converting Sales into a qualitative response variable. Now we will seek to predict Sales using regression trees and related approaches, treating the response as a quantitative variable.
 
@@ -185,31 +209,90 @@ data(Carseats,package = "ISLR2")
 ```
 (a) Split the data set into a training set and a test set.
 ```{r}
-
+sample_data2 <- sample.split(Carseats, SplitRatio = 0.8)
+train_car <- subset(Carseats,sample_data2==TRUE)
+test_car <- subset(Carseats,sample_data2==FALSE)
 ```
 
 (b) Fit a regression tree to the training set. Plot the tree, and interpret the results. What test MSE do you obtain?
 ```{r}
+set.seed(679)
+car_tree <- tree(Sales~.,data= train_car)
+summary(car_tree)
+plot(car_tree)
+text(car_tree,pretty=0,cex=0.6)
 
+prediction <- predict(car_tree,test_car)
+car_mse <- mean((prediction-test_car$Sales)^2)
+car_mse
 ```
 
 (c) Use cross-validation in order to determine the optimal level of tree complexity. Does pruning the tree improve the test MSE?
 ```{r}
+cv_car <- cv.tree(car_tree)
+plot(cv_car$size,cv_car$dev,type='b')
+prune_car <- prune.tree(car_tree,best=5)
+plot(prune_car)
+text(prune_car, pretty=0)
 
+car_yhat <- predict(prune_car,newdata = test_car)
+plot(car_yhat,test_car$Sales)
+abline(0,1)
+cv_car_mse <- mean((car_yhat-test_car$Sales)^2)
+cv_car_mse
 ```
 
 (d) Use the bagging approach in order to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important.
 ```{r}
+set.seed(679)
+bag_car <- randomForest(Sales~.,train_car,mtry=8,importance=TRUE)
+bag_car
 
+yhat_bag <- predict(bag_car,newdata = test_car)
+plot(yhat_bag,test_car$Sales)
+abline(0,1)
+bag_mean <- mean((yhat_bag-test_car$Sales)^2)
+bag_mean
 ```
 
 (e) Use random forests to analyze this data. What test MSE do you obtain? Use the importance() function to determine which variables are most important. Describe the effect of m, the number of variables considered at each split, on the error rate obtained.
 ```{r}
+set.seed(679)
+rd_car1 <- randomForest(Sales~.,train_car,mtry=10/2,importance=TRUE)
+rd_car2 <- randomForest(Sales~.,train_car,mtry=10/4,importance=TRUE)
+rd_car3 <- randomForest(Sales~.,train_car,mtry=10/6,importance=TRUE)
 
+importance(rd_car1)
+importance(rd_car2)
+importance(rd_car3)
+
+varImpPlot(rd_car1,cex=0.7)
+varImpPlot(rd_car2,cex=0.7)
+varImpPlot(rd_car3,cex=0.7)
+
+rd1_mse <- mean((predict(rd_car1,newdata = test_car)-test_car$Sales)^2)
+rd2_mse <- mean((predict(rd_car2,newdata = test_car)-test_car$Sales)^2)
+rd3_mse <- mean((predict(rd_car3,newdata = test_car)-test_car$Sales)^2)
+
+c(rd1_mse,rd2_mse,rd3_mse)
 ```
 (f) Now analyze the data using BART, and report your results.
 ```{r}
-
+set.seed(679)
+column_names <- names(Carseats)[2:9]
+column_names <- column_names[-(7-1)]
+x <- Carseats[, column_names]
+y <- Carseats[,"Sales"]
+xtrain <- x[train_car[[1]], ]
+ytrain <- y[train_car$Sales]
+xtest <- x[-train_car[[1]],]
+ytest <- y[-train_car$Sales]
+barfit <- gbart(xtrain,ytrain,x.test=xtest)
+bart_yhat <- barfit$yhat.test.mean
+bart_mean <- mean((ytest-bart_yhat)^2)
+bart_mean
+ord <- order(barfit$varcount.mean,decreasing=TRUE)
+barfit$varcount.mean[ord]
 ```
 
 ### OJ
@@ -224,14 +307,19 @@ data(OJ,package = "ISLR2")
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+set.seed(679)
+total_rows <- nrow(OJ)
+train_indices <- sample(1:total_rows, 800)
+train_oj <- OJ[train_indices, ]
+test_indices <- setdiff(1:total_rows, train_indices)
+test_oj <- OJ[test_indices, ]
+
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+Create as the question ask
 
 
 ~~~
@@ -240,14 +328,14 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+oj_tree <- tree(Purchase~.,train_oj,)
+summary(oj_tree)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+the training error rate is 0.1512, there are 8 terminal nodes in the tree
 
 
 ~~~
@@ -256,35 +344,35 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+oj_tree
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+Brach 4 has a terminal node, the split is LoycalCH < 0.276142, it has 174 observations, with each observation belonging to MM. Therefore, the final prediction for this branch is MM.
 
 
 ~~~
 
 (d) Create a plot of the tree, and interpret the results.
 ```{r}
-
+plot(oj_tree)
+text(oj_tree,pretty=0,cex=0.7)
 ```
 
 (e) Predict the response on the test data, and produce a confusion matrix comparing the test labels to the predicted test labels. What is the test error rate?
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+oj_yhat <- predict(oj_tree,newdata=test_oj,type='class')
+table(oj_yhat,test_oj$Purchase)
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+The test error rate is 19+37/147+19+37+67=0.2074.
 
 
 ~~~
@@ -293,14 +381,14 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+cv_oj <- cv.tree(oj_tree,FUN=prune.misclass)
+cv_oj
 ```
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+only 4 size left
 
 
 ~~~
@@ -309,14 +397,14 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+plot(cv_oj$size,cv_oj$dev,type='b')
 ```
+left
 
 Your answer:
 
 ~~~
-Please write your answer in full sentences.
+at size8, the error rate is the lowest
 
 
 ~~~
@@ -374,8 +462,9 @@ Please write your answer in full sentences.
 
 Your code:
 ```{r,echo=TRUE}
-#
-#
+prune_oj <-  prune.tree(oj_tree,best=5)
+plot(prune_oj)
+text(prune_oj,pretty=0)
 ```
 
 Your answer:
